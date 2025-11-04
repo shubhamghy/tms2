@@ -112,44 +112,75 @@ $records_per_page = 10;
 $reverify_payments = [];
 $pending_payments = [];
 $completed_payments = [];
+
+// Get search terms
+$search_reverify = isset($_GET['search_reverify']) ? trim($_GET['search_reverify']) : '';
+$search_pending = isset($_GET['search_pending']) ? trim($_GET['search_pending']) : '';
+$search_done = isset($_GET['search_done']) ? trim($_GET['search_done']) : '';
+
+// Get current page numbers
+$page_reverify = isset($_GET['page_reverify']) ? (int)$_GET['page_reverify'] : 1;
+$page_pending = isset($_GET['page_pending']) ? (int)$_GET['page_pending'] : 1;
+$page_done = isset($_GET['page_done']) ? (int)$_GET['page_done'] : 1;
+
 if (!$edit_mode) {
     // Reverify Payments
-    $page_reverify = isset($_GET['page_reverify']) ? (int)$_GET['page_reverify'] : 1;
     $offset_reverify = ($page_reverify - 1) * $records_per_page;
-    $total_reverify_res = $mysqli->query("SELECT COUNT(*) FROM shipments WHERE payment_entry_status = 'Reverify'");
-    $total_reverify = $total_reverify_res->fetch_row()[0];
+    $search_param_reverify = "%{$search_reverify}%";
+    
+    $sql_total_reverify = "SELECT COUNT(*) FROM shipments s JOIN parties p ON s.consignor_id = p.id WHERE s.payment_entry_status = 'Reverify' AND s.consignment_no LIKE ?";
+    $stmt_total_reverify = $mysqli->prepare($sql_total_reverify);
+    $stmt_total_reverify->bind_param("s", $search_param_reverify);
+    $stmt_total_reverify->execute();
+    $total_reverify = $stmt_total_reverify->get_result()->fetch_row()[0];
+    $stmt_total_reverify->close();
     $total_pages_reverify = ceil($total_reverify / $records_per_page);
-    $sql_reverify = "SELECT s.id, s.consignment_no, s.consignment_date, p.name as consignor_name, s.origin, s.destination FROM shipments s JOIN parties p ON s.consignor_id = p.id WHERE s.payment_entry_status = 'Reverify' ORDER BY s.consignment_date DESC LIMIT ?, ?";
+    
+    $sql_reverify = "SELECT s.id, s.consignment_no, s.consignment_date, p.name as consignor_name, s.origin, s.destination FROM shipments s JOIN parties p ON s.consignor_id = p.id WHERE s.payment_entry_status = 'Reverify' AND s.consignment_no LIKE ? ORDER BY s.consignment_date DESC LIMIT ?, ?";
     if ($stmt = $mysqli->prepare($sql_reverify)) {
-        $stmt->bind_param("ii", $offset_reverify, $records_per_page);
+        $stmt->bind_param("sii", $search_param_reverify, $offset_reverify, $records_per_page);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) { $reverify_payments[] = $row; }
         $stmt->close();
     }
+
     // Pending Payments
-    $page_pending = isset($_GET['page_pending']) ? (int)$_GET['page_pending'] : 1;
     $offset_pending = ($page_pending - 1) * $records_per_page;
-    $total_pending_res = $mysqli->query("SELECT COUNT(*) FROM shipments WHERE payment_entry_status = 'Pending'");
-    $total_pending = $total_pending_res->fetch_row()[0];
+    $search_param_pending = "%{$search_pending}%";
+    
+    $sql_total_pending = "SELECT COUNT(*) FROM shipments s JOIN parties p ON s.consignor_id = p.id WHERE s.payment_entry_status = 'Pending' AND s.consignment_no LIKE ?";
+    $stmt_total_pending = $mysqli->prepare($sql_total_pending);
+    $stmt_total_pending->bind_param("s", $search_param_pending);
+    $stmt_total_pending->execute();
+    $total_pending = $stmt_total_pending->get_result()->fetch_row()[0];
+    $stmt_total_pending->close();
     $total_pages_pending = ceil($total_pending / $records_per_page);
-    $sql_pending = "SELECT s.id, s.consignment_no, s.consignment_date, p.name as consignor_name, s.origin, s.destination FROM shipments s JOIN parties p ON s.consignor_id = p.id WHERE s.payment_entry_status = 'Pending' ORDER BY s.consignment_date DESC LIMIT ?, ?";
+
+    $sql_pending = "SELECT s.id, s.consignment_no, s.consignment_date, p.name as consignor_name, s.origin, s.destination FROM shipments s JOIN parties p ON s.consignor_id = p.id WHERE s.payment_entry_status = 'Pending' AND s.consignment_no LIKE ? ORDER BY s.consignment_date DESC LIMIT ?, ?";
     if ($stmt = $mysqli->prepare($sql_pending)) {
-        $stmt->bind_param("ii", $offset_pending, $records_per_page);
+        $stmt->bind_param("sii", $search_param_pending, $offset_pending, $records_per_page);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) { $pending_payments[] = $row; }
         $stmt->close();
     }
+
     // Completed Payments
-    $page_done = isset($_GET['page_done']) ? (int)$_GET['page_done'] : 1;
     $offset_done = ($page_done - 1) * $records_per_page;
-    $total_done_res = $mysqli->query("SELECT COUNT(*) FROM shipments WHERE payment_entry_status = 'Done'");
-    $total_done = $total_done_res->fetch_row()[0];
+    $search_param_done = "%{$search_done}%";
+    
+    $sql_total_done = "SELECT COUNT(*) FROM shipments s JOIN parties p ON s.consignor_id = p.id WHERE s.payment_entry_status = 'Done' AND s.consignment_no LIKE ?";
+    $stmt_total_done = $mysqli->prepare($sql_total_done);
+    $stmt_total_done->bind_param("s", $search_param_done);
+    $stmt_total_done->execute();
+    $total_done = $stmt_total_done->get_result()->fetch_row()[0];
+    $stmt_total_done->close();
     $total_pages_done = ceil($total_done / $records_per_page);
-    $sql_done = "SELECT s.id, s.consignment_no, s.consignment_date, p.name as consignor_name, s.origin, s.destination FROM shipments s JOIN parties p ON s.consignor_id = p.id WHERE s.payment_entry_status = 'Done' ORDER BY s.consignment_date DESC LIMIT ?, ?";
+    
+    $sql_done = "SELECT s.id, s.consignment_no, s.consignment_date, p.name as consignor_name, s.origin, s.destination FROM shipments s JOIN parties p ON s.consignor_id = p.id WHERE s.payment_entry_status = 'Done' AND s.consignment_no LIKE ? ORDER BY s.consignment_date DESC LIMIT ?, ?";
     if ($stmt = $mysqli->prepare($sql_done)) {
-        $stmt->bind_param("ii", $offset_done, $records_per_page);
+        $stmt->bind_param("sii", $search_param_done, $offset_done, $records_per_page);
         $stmt->execute();
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) { $completed_payments[] = $row; }
@@ -251,7 +282,18 @@ if (!$edit_mode) {
                 <?php else: ?>
                 <div class="space-y-8">
                     <div class="bg-white p-8 rounded-lg shadow-md">
-                        <h2 class="text-xl font-bold text-yellow-600 mb-6">Payment Re-verification Required</h2>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-yellow-600">Payment Re-verification Required</h2>
+                            <form method="GET" class="flex gap-2">
+                                <input type="hidden" name="page_reverify" value="1">
+                                <input type="hidden" name="page_pending" value="<?php echo $page_pending; ?>">
+                                <input type="hidden" name="page_done" value="<?php echo $page_done; ?>">
+                                <input type="hidden" name="search_pending" value="<?php echo htmlspecialchars($search_pending); ?>">
+                                <input type="hidden" name="search_done" value="<?php echo htmlspecialchars($search_done); ?>">
+                                <input type="text" name="search_reverify" placeholder="Search by LR No." value="<?php echo htmlspecialchars($search_reverify); ?>" class="px-3 py-2 border rounded-md text-sm shadow-sm">
+                                <button type="submit" class="py-2 px-4 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-sm">Search</button>
+                            </form>
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-yellow-50"><tr><th class="px-6 py-3 text-left text-xs font-medium uppercase">LR No.</th><th class="px-6 py-3 text-left text-xs font-medium uppercase">Date</th><th class="px-6 py-3 text-left text-xs font-medium uppercase">Route</th><th class="px-6 py-3 text-right text-xs font-medium uppercase">Actions</th></tr></thead>
@@ -264,16 +306,27 @@ if (!$edit_mode) {
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><a href="manage_payments.php?action=edit&id=<?php echo $shipment['id']; ?>" class="text-yellow-600 hover:text-yellow-900">Re-verify Details</a></td>
                                     </tr>
                                     <?php endforeach; ?>
-                                    <?php if(empty($reverify_payments)): ?><tr><td colspan="4" class="text-center py-4">No payments require re-verification.</td></tr><?php endif; ?>
+                                    <?php if(empty($reverify_payments)): ?><tr><td colspan="4" class="text-center py-4">No payments require re-verification<?php if(!empty($search_reverify)) echo ' for "'.htmlspecialchars($search_reverify).'"'; ?>.</td></tr><?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
                          <div class="mt-4 flex justify-end">
-                            <?php for ($i = 1; $i <= $total_pages_reverify; $i++): ?><a href="?page_reverify=<?php echo $i; ?>" class="px-3 py-1 mx-1 text-sm font-medium <?php echo $i == $page_reverify ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'; ?> border rounded-md hover:bg-gray-100"><?php echo $i; ?></a><?php endfor; ?>
+                            <?php for ($i = 1; $i <= $total_pages_reverify; $i++): ?><a href="?page_reverify=<?php echo $i; ?>&page_pending=<?php echo $page_pending; ?>&page_done=<?php echo $page_done; ?>&search_reverify=<?php echo htmlspecialchars($search_reverify); ?>&search_pending=<?php echo htmlspecialchars($search_pending); ?>&search_done=<?php echo htmlspecialchars($search_done); ?>" class="px-3 py-1 mx-1 text-sm font-medium <?php echo $i == $page_reverify ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'; ?> border rounded-md hover:bg-gray-100"><?php echo $i; ?></a><?php endfor; ?>
                         </div>
                     </div>
                     <div class="bg-white p-8 rounded-lg shadow-md">
-                        <h2 class="text-xl font-bold text-gray-800 mb-6">Pending Payment Entry</h2>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">Pending Payment Entry</h2>
+                            <form method="GET" class="flex gap-2">
+                                <input type="hidden" name="page_reverify" value="<?php echo $page_reverify; ?>">
+                                <input type="hidden" name="page_pending" value="1">
+                                <input type="hidden" name="page_done" value="<?php echo $page_done; ?>">
+                                <input type="hidden" name="search_reverify" value="<?php echo htmlspecialchars($search_reverify); ?>">
+                                <input type="hidden" name="search_done" value="<?php echo htmlspecialchars($search_done); ?>">
+                                <input type="text" name="search_pending" placeholder="Search by LR No." value="<?php echo htmlspecialchars($search_pending); ?>" class="px-3 py-2 border rounded-md text-sm shadow-sm">
+                                <button type="submit" class="py-2 px-4 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-sm">Search</button>
+                            </form>
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50"><tr><th class="px-6 py-3 text-left text-xs font-medium uppercase">LR No.</th><th class="px-6 py-3 text-left text-xs font-medium uppercase">Date</th><th class="px-6 py-3 text-left text-xs font-medium uppercase">Route</th><th class="px-6 py-3 text-right text-xs font-medium uppercase">Actions</th></tr></thead>
@@ -286,16 +339,27 @@ if (!$edit_mode) {
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><a href="manage_payments.php?action=edit&id=<?php echo $shipment['id']; ?>" class="text-indigo-600 hover:text-indigo-900">Add Details</a></td>
                                     </tr>
                                     <?php endforeach; ?>
-                                    <?php if(empty($pending_payments)): ?><tr><td colspan="4" class="text-center py-4">No payments are pending entry.</td></tr><?php endif; ?>
+                                    <?php if(empty($pending_payments)): ?><tr><td colspan="4" class="text-center py-4">No payments are pending entry<?php if(!empty($search_pending)) echo ' for "'.htmlspecialchars($search_pending).'"'; ?>.</td></tr><?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
                          <div class="mt-4 flex justify-end">
-                            <?php for ($i = 1; $i <= $total_pages_pending; $i++): ?><a href="?page_pending=<?php echo $i; ?>" class="px-3 py-1 mx-1 text-sm font-medium <?php echo $i == $page_pending ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'; ?> border rounded-md hover:bg-gray-100"><?php echo $i; ?></a><?php endfor; ?>
+                            <?php for ($i = 1; $i <= $total_pages_pending; $i++): ?><a href="?page_reverify=<?php echo $page_reverify; ?>&page_pending=<?php echo $i; ?>&page_done=<?php echo $page_done; ?>&search_reverify=<?php echo htmlspecialchars($search_reverify); ?>&search_pending=<?php echo htmlspecialchars($search_pending); ?>&search_done=<?php echo htmlspecialchars($search_done); ?>" class="px-3 py-1 mx-1 text-sm font-medium <?php echo $i == $page_pending ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'; ?> border rounded-md hover:bg-gray-100"><?php echo $i; ?></a><?php endfor; ?>
                         </div>
                     </div>
                     <div class="bg-white p-8 rounded-lg shadow-md">
-                        <h2 class="text-xl font-bold text-gray-800 mb-6">Completed Payment Entries</h2>
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold text-gray-800">Completed Payment Entries</h2>
+                            <form method="GET" class="flex gap-2">
+                                <input type="hidden" name="page_reverify" value="<?php echo $page_reverify; ?>">
+                                <input type="hidden" name="page_pending" value="<?php echo $page_pending; ?>">
+                                <input type="hidden" name="page_done" value="1">
+                                <input type="hidden" name="search_reverify" value="<?php echo htmlspecialchars($search_reverify); ?>">
+                                <input type="hidden" name="search_pending" value="<?php echo htmlspecialchars($search_pending); ?>">
+                                <input type="text" name="search_done" placeholder="Search by LR No." value="<?php echo htmlspecialchars($search_done); ?>" class="px-3 py-2 border rounded-md text-sm shadow-sm">
+                                <button type="submit" class="py-2 px-4 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-md shadow-sm">Search</button>
+                            </form>
+                        </div>
                         <div class="overflow-x-auto">
                             <table class="min-w-full divide-y divide-gray-200">
                                 <thead class="bg-gray-50">
@@ -315,12 +379,12 @@ if (!$edit_mode) {
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium"><a href="manage_payments.php?action=edit&id=<?php echo $shipment['id']; ?>" class="text-gray-600 hover:text-indigo-900">View/Edit Details</a></td>
                                     </tr>
                                     <?php endforeach; ?>
-                                    <?php if(empty($completed_payments)): ?><tr><td colspan="4" class="text-center py-4">No payment details have been entered yet.</td></tr><?php endif; ?>
+                                    <?php if(empty($completed_payments)): ?><tr><td colspan="4" class="text-center py-4">No payment details have been entered yet<?php if(!empty($search_done)) echo ' for "'.htmlspecialchars($search_done).'"'; ?>.</td></tr><?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
                         <div class="mt-4 flex justify-end">
-                            <?php for ($i = 1; $i <= $total_pages_done; $i++): ?><a href="?page_done=<?php echo $i; ?>" class="px-3 py-1 mx-1 text-sm font-medium <?php echo $i == $page_done ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'; ?> border rounded-md hover:bg-gray-100"><?php echo $i; ?></a><?php endfor; ?>
+                            <?php for ($i = 1; $i <= $total_pages_done; $i++): ?><a href="?page_reverify=<?php echo $page_reverify; ?>&page_pending=<?php echo $page_pending; ?>&page_done=<?php echo $i; ?>&search_reverify=<?php echo htmlspecialchars($search_reverify); ?>&search_pending=<?php echo htmlspecialchars($search_pending); ?>&search_done=<?php echo htmlspecialchars($search_done); ?>" class="px-3 py-1 mx-1 text-sm font-medium <?php echo $i == $page_done ? 'bg-indigo-600 text-white' : 'bg-white text-gray-700'; ?> border rounded-md hover:bg-gray-100"><?php echo $i; ?></a><?php endfor; ?>
                         </div>
                     </div>
                 </div>
